@@ -62,7 +62,7 @@
             border-radius: 8px;
             margin-top: 2px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            background-color: #e74c3c; /* Warna default awal agar tidak putih polos */
+            background-color: #e74c3c; /* Warna default awal */
         }
         #basket {
             width: 80px;
@@ -289,9 +289,24 @@
         document.addEventListener("keydown", (e) => keys[e.code] = true);
         document.addEventListener("keyup", (e) => keys[e.code] = false);
 
-        // Perbaikan Masalah Utama Sentuhan HP (Ditambahkan indeks [0] untuk membaca data sentuhan pertama)
+        // Event Listener Sentuhan (Touch) untuk HP
         gameContainer.addEventListener("touchmove", (e) => {
             if (isGameOver || !e.touches || !e.touches.length) return;
             let rect = gameContainer.getBoundingClientRect();
             let touchX = e.touches[0].clientX - rect.left;
             
+            // Batasi pergerakan keranjang agar tidak keluar layar
+            touchX = touchX - (basketWidth / 2);
+            if (touchX < 0) touchX = 0;
+            if (touchX > containerWidth - basketWidth) touchX = containerWidth - basketWidth;
+            
+            basketX = touchX;
+            basket.style.left = basketX + "px";
+        }, { passive: true });
+
+        // Mulai Game
+        changeTargetColor();
+        gameLoop();
+    </script>
+</body>
+</html>

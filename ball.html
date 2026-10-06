@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Lompat Bola (Ala T-Rex)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #f7f7f7;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #gameArea {
+            width: 600px;
+            height: 200px;
+            background-color: #fff;
+            border-bottom: 3px solid #333;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        #ball {
+            width: 30px;
+            height: 30px;
+            background-color: #3498db;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+        }
+        .jump {
+            animation: jumpAnimation 0.5s linear;
+        }
+        @keyframes jumpAnimation {
+            0% { bottom: 0; }
+            50% { bottom: 100px; }
+            100% { bottom: 0; }
+        }
+        #obstacle {
+            width: 20px;
+            height: 40px;
+            background-color: #e74c3c;
+            position: absolute;
+            bottom: 0;
+            right: -20px;
+        }
+        #scoreBoard {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        #gameOverText {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+        #gameOverText h2 { color: #e74c3c; margin-bottom: 5px; }
+        #gameOverText p { color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div id="scoreBoard">Skor: 0</div>
+    
+    <div id="gameArea">
+        <div id="ball"></div>
+        <div id="obstacle"></div>
+        
+        <div id="gameOverText">
+            <h2>GAME OVER</h2>
+            <p>Tekan SPASI atau Ketuk Layar untuk Main Lagi</p>
+        </div>
+    </div>
+
+    <script>
+        const ball = document.getElementById("ball");
+        const obstacle = document.getElementById("obstacle");
+        const scoreBoard = document.getElementById("scoreBoard");
+        const gameOverText = document.getElementById("gameOverText");
+        const gameArea = document.getElementById("gameArea");
+
+        let score = 0;
+        let isJumping = false;
+        let isGameOver = false;
+        
+        // Pengaturan awal kecepatan rintangan
+        let baseSpeed = 4; 
+        let currentSpeed = baseSpeed;
+        let obstaclePosition = -20;
+
+        // Fungsi membuat bola melompat
+        function jump() {
+            if (isJumping || isGameOver) return;
+            isJumping = true;
+            ball.classList.add("jump");
+            
+            // Hapus class setelah animasi selesai (500ms)
+            setTimeout(() => {
+                ball.classList.remove("jump");
+                isJumping = false;
+            }, 500);
+        }
+
+        // Mulai ulang permainan
+        function resetGame() {
+            score = 0;
+            currentSpeed = baseSpeed;
+            obstaclePosition = 600;
+            isGameOver = false;
+            gameOverText.style.display = "none";
+            obstacle.style.right = -20 + "px";
+            scoreBoard.innerText = "Skor: " + score;
+        }
+
+        // Loop utama permainan
+        function gameLoop() {
+            if (!isGameOver) {
+                // 1. Pergerakan Rintangan (dari kanan ke kiri)
+                if (obstaclePosition < -20) {
+                    // Jika rintangan lewat kiri, munculkan lagi di kanan dengan jarak acak sedikit
+                    obstaclePosition = 600 + Math.floor(Math.random() * 150);
+                } else {
+                    obstaclePosition -= currentSpeed;
+                }
+                obstacle.style.left = obstaclePosition + "px";
+
+                // 2. Tambah Skor & Naikkan Kecepatan secara bertahap
+                score++;
+                scoreBoard.innerText = "Skor: " + Math.floor(score / 5);
+                
+                // Semakin lama semakin cepat (kecepatan naik setiap kelipatan skor tertentu)
+                currentSpeed = baseSpeed + (score / 400);
+
+                // 3. Deteksi Tabrakan (Collision Detection)
+                let ballBottom = parseInt(window.getComputedStyle(ball).getPropertyValue("bottom"));
+                
+                // Koordinat horizontal kotak (obstacle) relatif terhadap gameArea
+                // Bola berada di posisi left: 50px sampai 80px (lebar bola 30px)
+                if (obstaclePosition > 50 && obstaclePosition < 80 && ballBottom <= 40) {
+                    // Kotak menabrak bola karena tinggi kotak adalah 40px
+                    isGameOver = true;
+                    gameOverText.style.display = "block";
+                }
+            }
+            
+            // Loop berjalan terus menggunakan requestAnimationFrame
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Event Listener Kontrol (Keyboard & Touchscreen)
+        document.addEventListener("keydown", function(event) {
+            if (event.code === "Space") {
+                if (isGameOver) {
+                    resetGame();
+                } else {
+                    jump();
+                }
+            }
+        });
+
+        // Agar bisa dimainkan di HP (Ketuk layar)
+        gameArea.addEventListener("touchstart", function() {
+            if (isGameOver) {
+                resetGame();
+            } else {
+                jump();
+            }
+        });
+
+        // Jalankan game pertama kali
+        resetGame();
+        gameLoop();
+    </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Game Tangkap Balok Warna</title>
     <style>
         * {
@@ -20,6 +20,7 @@
             height: 100vh;
             overflow: hidden;
             user-select: none;
+            -webkit-user-select: none;
         }
         #gameContainer {
             position: relative;
@@ -30,6 +31,7 @@
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            touch-action: none; /* Mencegah browser nge-lag saat di-swipe di HP */
         }
         /* Skor di Pojok Kiri Atas */
         #scoreBoard {
@@ -71,7 +73,7 @@
             border-radius: 4px;
             position: absolute;
             bottom: 20px;
-            left: 160px; /* (400 - 80) / 2 */
+            left: 160px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         }
         /* Balok Jatuh */
@@ -117,6 +119,7 @@
             margin-top: 15px;
             font-size: 14px;
             color: #888;
+            text-align: center;
         }
     </style>
 </head>
@@ -140,7 +143,7 @@
         </div>
     </div>
 
-    <p id="controlHint">Gunakan Panah Kiri/Kanan (← →) atau Geser Layar</p>
+    <p id="controlHint">Gunakan Keyboard (A/D atau ←/→) <br> Atau sentuh & geser kotak bawah di HP</p>
 
     <script>
         const gameContainer = document.getElementById("gameContainer");
@@ -151,7 +154,6 @@
         const finalScore = document.getElementById("finalScore");
         const failReason = document.getElementById("failReason");
 
-        // Daftar pilihan warna di dalam game
         const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6"];
         
         let score = 0;
@@ -159,39 +161,36 @@
         let currentColorTarget = "";
         let blocks = [];
         
-        // Pengaturan Pergerakan Basket
         let basketX = 160;
         const basketWidth = 80;
         const containerWidth = 400;
         const containerHeight = 600;
         let keys = {};
 
-        // Pengaturan Kecepatan & Spawn Loop
+        // Pengaturan Berbasis Frame (Anti Error Waktu Browser)
         let baseFallSpeed = 3;
         let currentFallSpeed = baseFallSpeed;
-        let spawnInterval = 1500; // ms
-        let lastSpawnTime = 0;
-        let lastTargetChangeTime = 0;
-        let targetChangeInterval = 5000; // Ganti target warna setiap 5 detik
+        
+        let spawnCounter = 0;
+        let spawnTimeGap = 90; // Spawn balok setiap ~90 frame
+        
+        let targetCounter = 0;
+        let targetTimeGap = 300; // Ganti warna target setiap ~300 frame
 
-        // Pilih warna target secara acak
         function changeTargetColor() {
             const randomIndex = Math.floor(Math.random() * colors.length);
             currentColorTarget = colors[randomIndex];
             targetBox.style.backgroundColor = currentColorTarget;
         }
 
-        // Membuat balok baru jatuh dari atas
         function spawnBlock() {
             const block = document.createElement("div");
             block.classList.add("block");
             
-            // Posisi X acak agar muat di dalam container (lebar balok 30px)
             const randomX = Math.floor(Math.random() * (containerWidth - 30));
             block.style.left = randomX + "px";
             block.style.top = "-30px";
             
-            // Warna balok acak
             const randomColor = colors[Math.floor(Math.random() * colors.length)];
             block.style.backgroundColor = randomColor;
             
@@ -206,7 +205,6 @@
         }
 
         function resetGame() {
-            // Hapus semua elemen balok lama yang tersisa
             blocks.forEach(b => b.element.remove());
             blocks = [];
             
@@ -219,66 +217,81 @@
             scoreBoard.innerText = "Skor: " + score;
             gameOverScreen.style.display = "none";
             
+            spawnCounter = 0;
+            targetCounter = 0;
             changeTargetColor();
-            lastSpawnTime = performance.now();
-            lastTargetChangeTime = performance.now();
         }
 
-        // Loop utama permainan menggunakan RequestAnimationFrame
-        function gameLoop(timestamp) {
+        // Loop utama permainan permanen
+        function gameLoop() {
             if (!isGameOver) {
-                // 1. Kontrol Pergerakan Basket (Keyboard)
-                if (keys["ArrowLeft"] && basketX > 0) {
-                    basketX -= 7;
+                // 1. Kontrol Keyboard (Mendukung A/D dan Panah)
+                if ((keys["ArrowLeft"] || keys["KeyA"]) && basketX > 0) {
+                    basketX -= 8;
                 }
-                if (keys["ArrowRight"] && basketX < (containerWidth - basketWidth)) {
-                    basketX += 7;
+                if ((keys["ArrowRight"] || keys["KeyD"]) && basketX < (containerWidth - basketWidth)) {
+                    basketX += 8;
                 }
                 basket.style.left = basketX + "px";
 
-                // 2. Mengubah Warna Target Setiap Interval Waktu
-                if (timestamp - lastTargetChangeTime > targetChangeInterval) {
+                // 2. Timer Penggantian Warna Target
+                targetCounter++;
+                if (targetCounter >= targetTimeGap) {
                     changeTargetColor();
-                    lastTargetChangeTime = timestamp;
+                    targetCounter = 0;
                 }
 
-                // 3. Memunculkan Balok Secara Rutin
-                if (timestamp - lastSpawnTime > spawnInterval) {
+                // 3. Timer Spawn Balok
+                spawnCounter++;
+                if (spawnCounter >= spawnTimeGap) {
                     spawnBlock();
-                    // Semakin tinggi skor, jeda memunculkan balok sedikit lebih cepat
-                    lastSpawnTime = timestamp;
+                    spawnCounter = 0;
                 }
 
-                // 4. Update Posisi Balok & Deteksi Tabrakan
+                // 4. Update Pergerakan Balok & Deteksi Tabrakan Fisik
                 for (let i = blocks.length - 1; i >= 0; i--) {
                     let b = blocks[i];
                     b.y += currentFallSpeed;
                     b.element.style.top = b.y + "px";
 
-                    // Hitungan batas atas basket (bottom: 20px dari bawah -> top: 560px)
-                    // Koordinat tabrakan dengan Basket
-                    if (b.y >= 540 && b.y <= 560 && b.x + 30 >= basketX && b.x <= basketX + basketWidth) {
-                        // Terjadi tangkapan!
+                    // Deteksi jika menyentuh area kotak kolektor di bawah (Y sekitar 540-565)
+                    if (b.y >= 540 && b.y <= 565 && (b.x + 30) >= basketX && b.x <= (basketX + basketWidth)) {
                         b.element.remove();
                         blocks.splice(i, 1);
 
                         if (b.color === currentColorTarget) {
-                            // JIKA BENAR: Tambah poin
                             score += 10;
                             scoreBoard.innerText = "Skor: " + score;
                             
-                            // MEKANISME LOOP: Semakin lama/tinggi skor, jalannya balok semakin cepat
-                            currentFallSpeed = baseFallSpeed + (score / 60); 
+                            // Semakin lama semakin menantang dan cepat
+                            currentFallSpeed = baseFallSpeed + (score / 70);
+                            if(spawnTimeGap > 40) spawnTimeGap = 90 - Math.floor(score / 20); 
                         } else {
-                            // JIKA SALAH WARNA: Game Over
-                            triggerGameOver("Salah warna! Menangkap warna yang dilarang.");
+                            triggerGameOver("Kamu menangkap warna yang salah!");
                         }
                         continue;
                     }
 
-                    // Jika Balok Lolos Lewat Batas Bawah Layar
+                    // Deteksi jika balok lolos ke bawah batas luar game
                     if (b.y > containerHeight) {
                         b.element.remove();
                         blocks.splice(i, 1);
 
-                        // Aturan tambahan: Jika warna target lolos tanpa ditangkap -> Game Over
+                        if (b.color === currentColorTarget) {
+                            triggerGameOver("Warna target utama dibiarkan jatuh!");
+                        }
+                    }
+                }
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function triggerGameOver(reason) {
+            isGameOver = true;
+            gameOverScreen.style.display = "flex";
+            finalScore.innerText = "Skor Akhir: " + score;
+            failReason.innerText = reason;
+        }
+
+        // --- SISTEM DETEKSI KONTROL INPUT ---
+        

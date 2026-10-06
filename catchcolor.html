@@ -148,7 +148,8 @@
         const finalScore = document.getElementById("finalScore");
         const failReason = document.getElementById("failReason");
 
-        const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6"];
+        // --- HANYA 3 WARNA: MERAH, HIJAU, BIRU ---
+        const colors = ["#e74c3c", "#2ecc71", "#3498db"];
         
         let score = 0;
         let isGameOver = false;
@@ -221,10 +222,10 @@
             if (!isGameOver) {
                 // Pergerakan Keranjang (Keyboard)
                 if ((keys["ArrowLeft"] || keys["KeyA"]) && basketX > 0) {
-                    basketX -= 5;
+                    basketX -= 3;
                 }
                 if ((keys["ArrowRight"] || keys["KeyD"]) && basketX < (containerWidth - basketWidth)) {
-                    basketX += 5;
+                    basketX += 3;
                 }
                 basket.style.left = basketX + "px";
 

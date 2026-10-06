@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Tangkap Balok Warna</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #eef2f3;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        #gameContainer {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background-color: #ffffff;
+            border: 4px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        /* Skor di Pojok Kiri Atas */
+        #scoreBoard {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            z-index: 10;
+        }
+        /* Indikator Warna di Pojok Kanan Atas */
+        #targetContainer {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            text-align: center;
+            z-index: 10;
+        }
+        #targetContainer span {
+            font-size: 11px;
+            font-weight: bold;
+            color: #777;
+            text-transform: uppercase;
+        }
+        #targetBox {
+            width: 60px;
+            height: 60px;
+            border: 3px solid #333;
+            border-radius: 8px;
+            margin-top: 2px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        /* Kotak Kolektor (Keranjang) */
+        #basket {
+            width: 80px;
+            height: 20px;
+            background-color: #4a4a4a;
+            border-radius: 4px;
+            position: absolute;
+            bottom: 20px;
+            left: 160px; /* (400 - 80) / 2 */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        /* Balok Jatuh */
+        .block {
+            width: 30px;
+            height: 30px;
+            position: absolute;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+        /* Layar Game Over */
+        #gameOverScreen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            text-align: center;
+            padding: 20px;
+        }
+        #gameOverScreen h2 { color: #ff4d4d; font-size: 32px; margin-bottom: 10px; }
+        #gameOverScreen p { font-size: 16px; margin-bottom: 20px; color: #ccc; }
+        #restartBtn {
+            padding: 10px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        #restartBtn:hover { background-color: #27ae60; }
+        #controlHint {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <div id="scoreBoard">Skor: 0</div>
+        
+        <div id="targetContainer">
+            <span>Ambil!</span>
+            <div id="targetBox"></div>
+        </div>
+
+        <div id="basket"></div>
+
+        <div id="gameOverScreen">
+            <h2>GAME OVER</h2>
+            <p id="finalScore">Skor Akhir: 0</p>
+            <p id="failReason"></p>
+            <button id="restartBtn" onclick="resetGame()">Main Lagi</button>
+        </div>
+    </div>
+
+    <p id="controlHint">Gunakan Panah Kiri/Kanan (← →) atau Geser Layar</p>
+
+    <script>
+        const gameContainer = document.getElementById("gameContainer");
+        const basket = document.getElementById("basket");
+        const scoreBoard = document.getElementById("scoreBoard");
+        const targetBox = document.getElementById("targetBox");
+        const gameOverScreen = document.getElementById("gameOverScreen");
+        const finalScore = document.getElementById("finalScore");
+        const failReason = document.getElementById("failReason");
+
+        // Daftar pilihan warna di dalam game
+        const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6"];
+        
+        let score = 0;
+        let isGameOver = false;
+        let currentColorTarget = "";
+        let blocks = [];
+        
+        // Pengaturan Pergerakan Basket
+        let basketX = 160;
+        const basketWidth = 80;
+        const containerWidth = 400;
+        const containerHeight = 600;
+        let keys = {};
+
+        // Pengaturan Kecepatan & Spawn Loop
+        let baseFallSpeed = 3;
+        let currentFallSpeed = baseFallSpeed;
+        let spawnInterval = 1500; // ms
+        let lastSpawnTime = 0;
+        let lastTargetChangeTime = 0;
+        let targetChangeInterval = 5000; // Ganti target warna setiap 5 detik
+
+        // Pilih warna target secara acak
+        function changeTargetColor() {
+            const randomIndex = Math.floor(Math.random() * colors.length);
+            currentColorTarget = colors[randomIndex];
+            targetBox.style.backgroundColor = currentColorTarget;
+        }
+
+        // Membuat balok baru jatuh dari atas
+        function spawnBlock() {
+            const block = document.createElement("div");
+            block.classList.add("block");
+            
+            // Posisi X acak agar muat di dalam container (lebar balok 30px)
+            const randomX = Math.floor(Math.random() * (containerWidth - 30));
+            block.style.left = randomX + "px";
+            block.style.top = "-30px";
+            
+            // Warna balok acak
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            block.style.backgroundColor = randomColor;
+            
+            gameContainer.appendChild(block);
+            
+            blocks.push({
+                element: block,
+                x: randomX,
+                y: -30,
+                color: randomColor
+            });
+        }
+
+        function resetGame() {
+            // Hapus semua elemen balok lama yang tersisa
+            blocks.forEach(b => b.element.remove());
+            blocks = [];
+            
+            score = 0;
+            currentFallSpeed = baseFallSpeed;
+            basketX = 160;
+            basket.style.left = basketX + "px";
+            isGameOver = false;
+            
+            scoreBoard.innerText = "Skor: " + score;
+            gameOverScreen.style.display = "none";
+            
+            changeTargetColor();
+            lastSpawnTime = performance.now();
+            lastTargetChangeTime = performance.now();
+        }
+
+        // Loop utama permainan menggunakan RequestAnimationFrame
+        function gameLoop(timestamp) {
+            if (!isGameOver) {
+                // 1. Kontrol Pergerakan Basket (Keyboard)
+                if (keys["ArrowLeft"] && basketX > 0) {
+                    basketX -= 7;
+                }
+                if (keys["ArrowRight"] && basketX < (containerWidth - basketWidth)) {
+                    basketX += 7;
+                }
+                basket.style.left = basketX + "px";
+
+                // 2. Mengubah Warna Target Setiap Interval Waktu
+                if (timestamp - lastTargetChangeTime > targetChangeInterval) {
+                    changeTargetColor();
+                    lastTargetChangeTime = timestamp;
+                }
+
+                // 3. Memunculkan Balok Secara Rutin
+                if (timestamp - lastSpawnTime > spawnInterval) {
+                    spawnBlock();
+                    // Semakin tinggi skor, jeda memunculkan balok sedikit lebih cepat
+                    lastSpawnTime = timestamp;
+                }
+
+                // 4. Update Posisi Balok & Deteksi Tabrakan
+                for (let i = blocks.length - 1; i >= 0; i--) {
+                    let b = blocks[i];
+                    b.y += currentFallSpeed;
+                    b.element.style.top = b.y + "px";
+
+                    // Hitungan batas atas basket (bottom: 20px dari bawah -> top: 560px)
+                    // Koordinat tabrakan dengan Basket
+                    if (b.y >= 540 && b.y <= 560 && b.x + 30 >= basketX && b.x <= basketX + basketWidth) {
+                        // Terjadi tangkapan!
+                        b.element.remove();
+                        blocks.splice(i, 1);
+
+                        if (b.color === currentColorTarget) {
+                            // JIKA BENAR: Tambah poin
+                            score += 10;
+                            scoreBoard.innerText = "Skor: " + score;
+                            
+                            // MEKANISME LOOP: Semakin lama/tinggi skor, jalannya balok semakin cepat
+                            currentFallSpeed = baseFallSpeed + (score / 60); 
+                        } else {
+                            // JIKA SALAH WARNA: Game Over
+                            triggerGameOver("Salah warna! Menangkap warna yang dilarang.");
+                        }
+                        continue;
+                    }
+
+                    // Jika Balok Lolos Lewat Batas Bawah Layar
+                    if (b.y > containerHeight) {
+                        b.element.remove();
+                        blocks.splice(i, 1);
+
+                        // Aturan tambahan: Jika warna target lolos tanpa ditangkap -> Game Over

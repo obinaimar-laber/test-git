@@ -221,10 +221,10 @@
             if (!isGameOver) {
                 // Pergerakan Keranjang (Keyboard)
                 if ((keys["ArrowLeft"] || keys["KeyA"]) && basketX > 0) {
-                    basketX -= 8;
+                    basketX -= 5;
                 }
                 if ((keys["ArrowRight"] || keys["KeyD"]) && basketX < (containerWidth - basketWidth)) {
-                    basketX += 8;
+                    basketX += 5;
                 }
                 basket.style.left = basketX + "px";
 

@@ -31,9 +31,8 @@
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            touch-action: none; /* Mencegah browser nge-lag saat di-swipe di HP */
+            touch-action: none;
         }
-        /* Skor di Pojok Kiri Atas */
         #scoreBoard {
             position: absolute;
             top: 15px;
@@ -43,7 +42,6 @@
             color: #333;
             z-index: 10;
         }
-        /* Indikator Warna di Pojok Kanan Atas */
         #targetContainer {
             position: absolute;
             top: 15px;
@@ -65,7 +63,6 @@
             margin-top: 2px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        /* Kotak Kolektor (Keranjang) */
         #basket {
             width: 80px;
             height: 20px;
@@ -76,7 +73,6 @@
             left: 160px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         }
-        /* Balok Jatuh */
         .block {
             width: 30px;
             height: 30px;
@@ -84,7 +80,6 @@
             border-radius: 4px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
-        /* Layar Game Over */
         #gameOverScreen {
             display: none;
             position: absolute;
@@ -112,9 +107,7 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: 0.2s;
         }
-        #restartBtn:hover { background-color: #27ae60; }
         #controlHint {
             margin-top: 15px;
             font-size: 14px;
@@ -143,7 +136,7 @@
         </div>
     </div>
 
-    <p id="controlHint">Gunakan Keyboard (A/D atau ←/→) <br> Atau sentuh & geser kotak bawah di HP</p>
+    <p id="controlHint">Gunakan Keyboard (A/D atau ←/→) <br> Atau seret kotak abu-abu di bawah</p>
 
     <script>
         const gameContainer = document.getElementById("gameContainer");
@@ -154,6 +147,7 @@
         const finalScore = document.getElementById("finalScore");
         const failReason = document.getElementById("failReason");
 
+        // Palet warna permainan terang & jelas
         const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6"];
         
         let score = 0;
@@ -167,15 +161,14 @@
         const containerHeight = 600;
         let keys = {};
 
-        // Pengaturan Berbasis Frame (Anti Error Waktu Browser)
         let baseFallSpeed = 3;
         let currentFallSpeed = baseFallSpeed;
         
         let spawnCounter = 0;
-        let spawnTimeGap = 90; // Spawn balok setiap ~90 frame
+        let spawnTimeGap = 80; 
         
         let targetCounter = 0;
-        let targetTimeGap = 300; // Ganti warna target setiap ~300 frame
+        let targetTimeGap = 350; 
 
         function changeTargetColor() {
             const randomIndex = Math.floor(Math.random() * colors.length);
@@ -205,11 +198,13 @@
         }
 
         function resetGame() {
-            blocks.forEach(b => b.element.remove());
+            // Hapus paksa sisa kotak visual di layar
+            blocks.forEach(b => { if(b.element) b.element.remove(); });
             blocks = [];
             
             score = 0;
             currentFallSpeed = baseFallSpeed;
+            spawnTimeGap = 80;
             basketX = 160;
             basket.style.left = basketX + "px";
             isGameOver = false;
@@ -219,13 +214,14 @@
             
             spawnCounter = 0;
             targetCounter = 0;
+            
+            // Panggil pengisian warna target pertama kali
             changeTargetColor();
         }
 
-        // Loop utama permainan permanen
         function gameLoop() {
             if (!isGameOver) {
-                // 1. Kontrol Keyboard (Mendukung A/D dan Panah)
+                // 1. Pergerakan Keranjang (Keyboard)
                 if ((keys["ArrowLeft"] || keys["KeyA"]) && basketX > 0) {
                     basketX -= 8;
                 }
@@ -234,27 +230,27 @@
                 }
                 basket.style.left = basketX + "px";
 
-                // 2. Timer Penggantian Warna Target
+                // 2. Timer Penggantian Target
                 targetCounter++;
                 if (targetCounter >= targetTimeGap) {
                     changeTargetColor();
                     targetCounter = 0;
                 }
 
-                // 3. Timer Spawn Balok
+                // 3. Timer Pemunculan Balok Jatuh
                 spawnCounter++;
                 if (spawnCounter >= spawnTimeGap) {
                     spawnBlock();
                     spawnCounter = 0;
                 }
 
-                // 4. Update Pergerakan Balok & Deteksi Tabrakan Fisik
+                // 4. Update Posisi & Hitbox Tabrakan
                 for (let i = blocks.length - 1; i >= 0; i--) {
                     let b = blocks[i];
                     b.y += currentFallSpeed;
                     b.element.style.top = b.y + "px";
 
-                    // Deteksi jika menyentuh area kotak kolektor di bawah (Y sekitar 540-565)
+                    // Deteksi Tabrakan Fisik dengan Keranjang Abu-Abu
                     if (b.y >= 540 && b.y <= 565 && (b.x + 30) >= basketX && b.x <= (basketX + basketWidth)) {
                         b.element.remove();
                         blocks.splice(i, 1);
@@ -263,16 +259,16 @@
                             score += 10;
                             scoreBoard.innerText = "Skor: " + score;
                             
-                            // Semakin lama semakin menantang dan cepat
-                            currentFallSpeed = baseFallSpeed + (score / 70);
-                            if(spawnTimeGap > 40) spawnTimeGap = 90 - Math.floor(score / 20); 
+                            // Skala kesulitan meningkat bertahap
+                            currentFallSpeed = baseFallSpeed + (score / 80);
+                            if(spawnTimeGap > 35) spawnTimeGap = 80 - Math.floor(score / 25);
                         } else {
                             triggerGameOver("Kamu menangkap warna yang salah!");
                         }
                         continue;
                     }
 
-                    // Deteksi jika balok lolos ke bawah batas luar game
+                    // Deteksi jika warna target terlewat/jatuh bebas
                     if (b.y > containerHeight) {
                         b.element.remove();
                         blocks.splice(i, 1);
@@ -293,5 +289,10 @@
             failReason.innerText = reason;
         }
 
-        // --- SISTEM DETEKSI KONTROL INPUT ---
-        
+        // --- SISTEM KONTROL INPUT AMAN ---
+        document.addEventListener("keydown", (e) => keys[e.code] = true);
+        document.addEventListener("keyup", (e) => keys[e.code] = false);
+
+        // Kontrol Geser HP Terkalibrasi (Hanya memproses jika ada sentuhan aktif)
+        gameContainer.addEventListener("touchmove", (e) => {
+            if (isGameOver || !e.touches.length) return;

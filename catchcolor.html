@@ -62,6 +62,7 @@
             border-radius: 8px;
             margin-top: 2px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background-color: #e74c3c; /* Warna default awal agar tidak putih polos */
         }
         #basket {
             width: 80px;
@@ -136,7 +137,7 @@
         </div>
     </div>
 
-    <p id="controlHint">Gunakan Keyboard (A/D atau ←/→) <br> Atau seret kotak abu-abu di bawah</p>
+    <p id="controlHint">Gunakan Keyboard (A/D atau Panah ←/→) <br> Atau seret kotak abu-abu di bawah</p>
 
     <script>
         const gameContainer = document.getElementById("gameContainer");
@@ -147,7 +148,6 @@
         const finalScore = document.getElementById("finalScore");
         const failReason = document.getElementById("failReason");
 
-        // Palet warna permainan terang & jelas
         const colors = ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6"];
         
         let score = 0;
@@ -198,7 +198,6 @@
         }
 
         function resetGame() {
-            // Hapus paksa sisa kotak visual di layar
             blocks.forEach(b => { if(b.element) b.element.remove(); });
             blocks = [];
             
@@ -215,13 +214,12 @@
             spawnCounter = 0;
             targetCounter = 0;
             
-            // Panggil pengisian warna target pertama kali
             changeTargetColor();
         }
 
         function gameLoop() {
             if (!isGameOver) {
-                // 1. Pergerakan Keranjang (Keyboard)
+                // Pergerakan Keranjang (Keyboard)
                 if ((keys["ArrowLeft"] || keys["KeyA"]) && basketX > 0) {
                     basketX -= 8;
                 }
@@ -230,27 +228,27 @@
                 }
                 basket.style.left = basketX + "px";
 
-                // 2. Timer Penggantian Target
+                // Timer Penggantian Target Warna
                 targetCounter++;
                 if (targetCounter >= targetTimeGap) {
                     changeTargetColor();
                     targetCounter = 0;
                 }
 
-                // 3. Timer Pemunculan Balok Jatuh
+                // Timer Pemunculan Balok Jatuh
                 spawnCounter++;
                 if (spawnCounter >= spawnTimeGap) {
                     spawnBlock();
                     spawnCounter = 0;
                 }
 
-                // 4. Update Posisi & Hitbox Tabrakan
+                // Pergerakan Balok & Logika Tabrakan
                 for (let i = blocks.length - 1; i >= 0; i--) {
                     let b = blocks[i];
                     b.y += currentFallSpeed;
                     b.element.style.top = b.y + "px";
 
-                    // Deteksi Tabrakan Fisik dengan Keranjang Abu-Abu
+                    // Deteksi jika mengenai keranjang bawah
                     if (b.y >= 540 && b.y <= 565 && (b.x + 30) >= basketX && b.x <= (basketX + basketWidth)) {
                         b.element.remove();
                         blocks.splice(i, 1);
@@ -258,8 +256,6 @@
                         if (b.color === currentColorTarget) {
                             score += 10;
                             scoreBoard.innerText = "Skor: " + score;
-                            
-                            // Skala kesulitan meningkat bertahap
                             currentFallSpeed = baseFallSpeed + (score / 80);
                             if(spawnTimeGap > 35) spawnTimeGap = 80 - Math.floor(score / 25);
                         } else {
@@ -268,7 +264,7 @@
                         continue;
                     }
 
-                    // Deteksi jika warna target terlewat/jatuh bebas
+                    // Deteksi jika warna target lolos ke bawah lantai
                     if (b.y > containerHeight) {
                         b.element.remove();
                         blocks.splice(i, 1);
@@ -289,10 +285,13 @@
             failReason.innerText = reason;
         }
 
-        // --- SISTEM KONTROL INPUT AMAN ---
+        // Event Listener Keyboard
         document.addEventListener("keydown", (e) => keys[e.code] = true);
         document.addEventListener("keyup", (e) => keys[e.code] = false);
 
-        // Kontrol Geser HP Terkalibrasi (Hanya memproses jika ada sentuhan aktif)
+        // Perbaikan Masalah Utama Sentuhan HP (Ditambahkan indeks [0] untuk membaca data sentuhan pertama)
         gameContainer.addEventListener("touchmove", (e) => {
-            if (isGameOver || !e.touches.length) return;
+            if (isGameOver || !e.touches || !e.touches.length) return;
+            let rect = gameContainer.getBoundingClientRect();
+            let touchX = e.touches[0].clientX - rect.left;
+            
